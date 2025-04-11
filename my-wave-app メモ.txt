@@ -1,0 +1,17 @@
+天気api stormglass.io
+
+https://stormglass.io/terms-and-conditions/?_gl=1%2A1q5xiap%2A_gcl_au%2ANDIxNzQ0Mjc4LjE3NDQyNzYwOTg.
+
+apiキー　　67901aaa-15eb-11f0-803a-0242ac130003-67901b04-15eb-11f0-803a-0242ac130003
+
+
+
+コマンドプロンプト　とぶやつ
+cd OneDrive - 学校法人神奈川大学\デスクトップ\python\my-wave-app
+
+
+python　実行コマンド
+python app.py
+
+url 
+http://127.0.0.1:5000/

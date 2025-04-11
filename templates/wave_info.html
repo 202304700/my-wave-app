@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ date }} の波の高さ情報</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <h1>{{ date }} の波の高さ予測</h1>
+
+    <canvas id="waveChart" width="400" height="200"></canvas>
+
+    <script>
+        var timeData = {{ time_data | tojson }};
+        var waveData = {{ wave_data | tojson }};
+
+        // データが正しいかコンソールで確認
+        console.log(timeData);
+        console.log(waveData);
+
+        var ctx = document.getElementById('waveChart').getContext('2d');
+        var waveChart = new Chart(ctx, {
+            type: 'bar',  // 棒グラフに変更
+            data: {
+                labels: timeData,  // 時刻データ
+                datasets: [{
+                    label: '波の高さ (m)',
+                    data: waveData,  // 波の高さデータ
+                    backgroundColor: 'rgba(75, 192, 192, 0.5)',  // 棒グラフの色
+                    borderColor: 'rgba(75, 192, 192, 1)',  // 棒グラフの枠線色
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '時間'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '波の高さ (m)'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+    <br>
+    <a href="/">戻る</a>
+</body>
+
+</html>

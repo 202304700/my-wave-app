@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>波の高さ情報</title>
+</head>
+
+<body>
+    <h1>波の高さ情報</h1>
+    <h2>日付を選択してください：</h2>
+
+    <!-- 日付のボタンを動的に表示 -->
+    {% for date in dates %}
+    <button onclick="window.location.href='{{ url_for('show_wave_info', date=date) }}'">{{ date }}</button>
+    {% endfor %}
+</body>
+
+</html>
