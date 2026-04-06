@@ -4,17 +4,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>波の高さ情報</title>
+    <title>波の高さ情報 | 波情報</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
-<body>
-    <h1>波の高さ情報</h1>
-    <h2>日付を選択してください：</h2>
+<body class="min-h-screen flex flex-col items-center py-12 px-4">
 
-    <!-- 日付のボタンを動的に表示 -->
-    {% for date in dates %}
-    <button onclick="window.location.href='{{ url_for('show_wave_info', date=date) }}'">{{ date }}</button>
-    {% endfor %}
+    <header class="text-center mb-12">
+        <h1 class="text-4xl font-extrabold mb-2 tracking-tight">
+            🌊 波情報
+        </h1>
+        <p class="text-blue-500 font-medium">鎌倉エリア 波高予測システム</p>
+    </header>
+
+    <main class="w-full max-w-md">
+        <div class="mb-6 flex items-center justify-between">
+            <h2 class="text-lg font-bold text-gray-700">日付を選択してください</h2>
+            <span
+                class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded uppercase tracking-wider font-bold">Daily</span>
+        </div>
+
+        <div class="space-y-4">
+            {% for date in dates %}
+            <button class="date-card" onclick="window.location.href='{{ url_for('show_wave_info', date=date) }}'">
+                <span>{{ date }}</span>
+                <span class="arrow text-xl">→</span>
+            </button>
+            {% endfor %}
+        </div>
+    </main>
+
+    <footer class="mt-auto pt-10 text-gray-400 text-sm">
+        &copy; 2026 Surf Info Project
+    </footer>
+
 </body>
 
 </html>

@@ -13,5 +13,8 @@ cd OneDrive - 学校法人神奈川大学\デスクトップ\python\my-wave-app
 python　実行コマンド
 python app.py
 
+
+
 url 
-http://127.0.0.1:5000/
+http://127.0.0.1:5000/ 
+https://my-wave-app.onrender.com

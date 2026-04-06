@@ -57,4 +57,4 @@ def show_wave_info(date):
     return render_template('wave_info.html', wave_data=wave_data, time_data=time_data, date=date)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)

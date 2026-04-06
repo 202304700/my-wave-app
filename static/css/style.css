@@ -1,0 +1,75 @@
+/* 海をイメージした背景とフォントの設定 */
+body {
+    background-color: #f0f9ff;
+    /* 明るい水色 */
+    font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    color: #1e3a8a;
+    /* 濃い紺色 */
+}
+
+.chart-container {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.back-link {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: bold;
+    display: inline-block;
+    margin-bottom: 1rem;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+/* 前回の内容に以下を追記・統合 */
+
+body {
+    background-color: #f0f9ff;
+    font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    color: #1e3a8a;
+    margin: 0;
+}
+
+/* 日付選択ボタンをカードのように見せる */
+.date-card {
+    background: white;
+    border: 1px solid #e0f2fe;
+    border-radius: 12px;
+    padding: 1.5rem;
+    width: 100%;
+    text-align: left;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.date-card:hover {
+    background-color: #3b82f6;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.date-card:hover .arrow {
+    transform: translateX(5px);
+}
+
+.arrow {
+    transition: transform 0.2s ease;
+    color: #93c5fd;
+}
+
+.date-card:hover .arrow {
+    color: white;
+}
