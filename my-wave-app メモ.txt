@@ -13,8 +13,13 @@ cd OneDrive - 学校法人神奈川大学\デスクトップ\python\my-wave-app
 python　実行コマンド
 python app.py
 
-
+cssファイル　デザイン
+jsファイル　グラフ化、グラデーション
+indexファイル　目次ページ
+waveinfo グラフページ
+app.pyファイル　情報の取得・計算・整理。裏側
 
 url 
-http://127.0.0.1:5000/ 
+
 https://my-wave-app.onrender.com
+
