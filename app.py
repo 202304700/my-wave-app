@@ -1,107 +1,249 @@
 import os
-from flask import Flask, render_template
 import requests
+from flask import Flask, render_template, jsonify, request
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
-# .envファイルから環境変数を読み込む
+# .envファイルから環境変数（APIキーなど）を読み込む
 load_dotenv()
 
 app = Flask(__name__)
 
-# 鎌倉の緯度経度
+# ==========================================
+# APIキーとURLの設定 (環境変数から安全に取得)
+# ==========================================
+# 鎌倉の緯度経度（ここで場所を指定）
 lat = 35.3193
 lon = 139.5503
 
-# APIキーを環境変数から取得
+# APIキーと、情報を取得するためのURL（気象用と潮汐用、そしてSupabase用）
 api_key = os.environ.get("STORMGLASS_API_KEY")
-url = "https://api.stormglass.io/v2/weather/point"
+supabase_url = os.environ.get("SUPABASE_URL")
+supabase_key = os.environ.get("SUPABASE_KEY")
 
-# 風向きの角度からコンディション（オン/オフ）を判定する関数
-def get_wind_condition(deg):
-    if deg is None:
-        return "データなし"
-    if 315 <= deg or deg <= 45:
-        return "オフショア (良好)"
-    elif 135 <= deg <= 225:
-        return "オンショア (乱れ)"
-    else:
-        return "サイドショア"
+weather_url = "https://api.stormglass.io/v2/weather/point"
+tide_url = "https://api.stormglass.io/v2/tide/sea-level/point"
 
-# 追加：角度(0~360度)を16方位（北、南東など）に変換する関数
+# 【重要関数1】風向きの角度からサーフィン用のコンディションを判定
+def get_wind_condition(deg): #degree角度のこと
+    if deg is None: return "データなし"
+    # 鎌倉の南向き海岸を想定し、北風をオフショア、南風をオンショアと判定
+    if 315 <= deg or deg <= 45: return "オフショア (良好)"
+    elif 135 <= deg <= 225: return "オンショア (乱れ)"
+    else: return "サイドショア"
+
+# 【重要関数2】角度(0~360度)を、人間が読みやすい16方位（北、南東など）に変換
 def get_cardinal_direction(deg):
-    if deg is None:
-        return "--"
+    if deg is None: return "--"
+    ##directions方向
     dirs = ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", 
             "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"]
-    ix = int((deg + 11.25) / 22.5)
-    return dirs[ix % 16]
+    ix = int((deg + 11.25) / 22.5)#北０度だが、左右２２．５度が北を指すため１１，２５を足す
+    return dirs[ix % 16] 
+
+# 【重要関数3】1日の最大潮位と最小潮位の差から「潮回り」を自動判定
+def get_tide_phase(max_h, min_h):
+    diff = max_h - min_h
+    if diff >= 120: return "大潮"
+    elif diff >= 80: return "中潮"
+    elif diff >= 40: return "小潮"
+    elif diff >= 25: return "長潮"
+    else: return "若潮"
+
+# 【重要関数4】掛け算モデル ＋ 5点刻み丸め処理のスコア計算
+def calculate_surf_score(wave_h, wind_cond, wind_speed, tide_phase, level):
+    # --- STEP 1: 安全装置 ---
+    # 爆風(12m/s以上)、または初心者には危険な波高(1.5m超)は強制 0点
+    if wind_speed > 12.0 or (level == "beginner" and wave_h > 1.5): return 0
+
+    # --- STEP 2: ベーススコア（波のサイズ） 最大 60点 ---
+    base_score = 0
+    if level == "beginner":
+        if 0.4 <= wave_h < 0.8: base_score = 60    # 理想（膝〜腹）
+        elif 0.2 <= wave_h < 0.4: base_score = 30   # 小さめ
+        else: base_score = 15                       # 大きすぎる等
+    else: # 経験者
+        if 0.8 <= wave_h < 1.6: base_score = 60    # 理想（腹〜頭）
+        else: base_score = 30                       # それ以外
+
+    # --- STEP 3: 風の係数（最大 1.5倍） ---
+    # 風向きと風速を掛け合わせて、ベーススコアを何倍にするか決める
+    multiplier = 1.0
+    if "オフショア" in wind_cond:
+        if wind_speed <= 3.0: multiplier = 1.5      # 最高の面ツル
+        elif wind_speed <= 5.0: multiplier = 1.3    
+        elif wind_speed <= 7.0: multiplier = 1.0    # 抑えられて良い
+        else: multiplier = 0.6                      # 煽られる
+    elif "サイドショア" in wind_cond:
+        if wind_speed <= 2.0: multiplier = 0.8      # 弱い横風。少し流される程度で十分遊べる
+        elif wind_speed <= 4.0: multiplier = 0.6    # カレント発生。パドルが少し疲れるが練習可能
+        elif wind_speed <= 6.0: multiplier = 0.3    # 川のように流される。ポジションキープが過酷
+        else: multiplier = 0.1
+    else: # オンショア
+        if wind_speed <= 2.0: multiplier = 0.7      # 多少ザワつく程度（遊べる）
+        elif wind_speed <= 4.0: multiplier = 0.4    # チョッピー。午後の定番（練習にはなる）
+        elif wind_speed <= 6.0: multiplier = 0.2    # グチャグチャ。修行（気合があれば…）
+        else: multiplier = 0.1
+
+    # --- STEP 4: 最終合体（潮回りボーナス最大10点） ---
+    tide_bonus = 10 if tide_phase in ["大潮", "中潮"] else 5
+    final_score = (base_score * multiplier) + tide_bonus
+
+    # --- STEP 5: 5点刻みに丸めて、100点を超えないようにする ---
+    rounded_score = round(final_score / 5.0) * 5
+    return min(100, int(rounded_score))
+
+# 【重要関数5】波の高さ(m)からサーファー用語のサイズを判定する
+def get_wave_size_name(h):
+    if h < 0.2: return "フラット"
+    elif h < 0.4: return "スネ〜ヒザ"
+    elif h < 0.8: return "モモ〜コシ"
+    elif h < 1.1: return "ハラ〜ムネ"
+    elif h < 1.6: return "カタ〜アタマ"
+    else: return "オーバーヘッド"
+
+
+# ==========================================
+# データ保存用APIエンドポイント 
+# ==========================================
+@app.route('/save_log', methods=['POST'])
+def save_log():
+    data = request.json
+    try:
+        # フロントエンドから送られてきたデータで新しいログの「辞書（Payload）」を作成
+        payload = {
+            "user_name": data.get('user_name', 'Beginner'),
+            "date": data['date'],
+            "hour": data['hour'],
+            "wave_h": data['wave_h'],
+            "wind_speed": data['wind_speed'],
+            "wind_sin": data['wind_sin'],
+            "wind_cos": data['wind_cos'],
+            "tide_h": data['tide_h'],
+            "logic_score": data['logic_score'],
+            "user_score": data['user_score'],
+            "comment": data.get('comment', '')
+        }
+
+        # Supabaseに送るための「宛先」と「身分証明書」
+        endpoint = f"{supabase_url}/rest/v1/surf_logs"
+        headers = {
+            "apikey": supabase_key,
+            "Authorization": f"Bearer {supabase_key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
+
+        # POSTリクエスト
+        response = requests.post(endpoint, json=payload, headers=headers)
+
+        # HTTPステータスが200(OK)か201(Created)なら成功
+        if response.status_code in [200, 201]:
+            return jsonify({"status": "success", "message": "Supabaseに保存されました！"}), 200
+        else:
+            # 失敗した場合、エラー内容を画面に返す
+            print("Supabase Error:", response.text)
+            return jsonify({"status": "error", "message": response.text}), 500
+            
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route('/')
 def index():
+    # 今日から7日後までの日付リストを作成し、トップページに渡す
     today = datetime.today()
     dates = [today + timedelta(days=i) for i in range(7)]
     date_strings = [date.strftime('%Y-%m-%d') for date in dates]
     return render_template('index.html', dates=date_strings)
 
+
 @app.route('/<date>')
 def show_wave_info(date):
-    # favicon.ico の自動リクエストを無視してエラーを防ぐ
-    if date == 'favicon.ico':
-        return "", 204
+    if date == 'favicon.ico': return "", 204
 
+    # APIに送る条件（緯度経度、欲しいデータ、開始・終了時間）
     params = {
-        "lat": lat,
-        "lng": lon,
-        "params": "waveHeight,swellHeight,windSpeed,windDirection", 
-        "start": f"{date}T00:00:00Z",
-        "end": f"{date}T23:59:59Z"
+        "lat": lat, "lng": lon,
+        "params": "waveHeight,windSpeed,windDirection", 
+        "start": f"{date}T00:00:00Z", "end": f"{date}T23:59:59Z"
     }
-    
-    headers = {
-        "Authorization": api_key
-    }
+    headers = { "Authorization": api_key }
 
-    response = requests.get(url, params=params, headers=headers)
+    # 1. 気象データ（波・風）と 2. 潮汐データをそれぞれ取得
+    response = requests.get(weather_url, params=params, headers=headers)
+    tide_response = requests.get(tide_url, params=params, headers=headers)
 
-    wave_data = []
-    time_data = []
-    wind_condition_data = []
-    wind_speed_data = []
-    wind_cardinal_data = [] # 方位データのリストを追加
+    # HTMLに渡すための空のリスト（箱）を用意
+    wave_data, time_data, wind_condition_data = [], [], []
+    wind_speed_data, wind_cardinal_data, tide_data = [], [], []
+    beginner_scores, experienced_scores = [], [] # スコア用の箱を追加
+    wave_size_data = []
+    wind_deg_data = []  # ★これを追加！
+    tide_phase = "--"
 
-    if response.status_code == 200:
-        data = response.json()
+    # 両方のAPI通信が成功(200)した場合のみデータ処理を実行
+    if response.status_code == 200 and tide_response.status_code == 200:
+        w_data = response.json()
+        t_json = tide_response.json()
+
+        tide_dict = {}
+        all_heights = []
         
-        if "hours" in data:
-            for hour_data in data["hours"]:
-                wave_data.append(hour_data.get('waveHeight', {}).get('sg', 0))
-                time_data.append(hour_data['time'])
-                
-                wind_deg = hour_data.get('windDirection', {}).get('sg')
-                wind_speed = hour_data.get('windSpeed', {}).get('sg', 0)
-                
-                wind_condition_data.append(get_wind_condition(wind_deg))
-                wind_speed_data.append(wind_speed)
-                wind_cardinal_data.append(get_cardinal_direction(wind_deg)) # 方位を追加
-                
-            # タイムスタンプのフォーマット修正
-            time_data = [datetime.strptime(hour, "%Y-%m-%dT%H:%M:%S%z").strftime("%H:%M") for hour in time_data]
+        # 【データ整理1: 潮汐】時間の文字列（"2026-04-21T12"）をキーにして潮位を辞書に保存
+        if "data" in t_json:
+            for t in t_json["data"]:
+                time_key = t["time"][:13] # 時間部分までを切り出す
+                height = round(t.get('sg', 0) * 100, 1) # メートルをcmに変換
+                tide_dict[time_key] = height #「時間」をキー、「潮位」を値として辞書に保存
+                all_heights.append(height)
+            
+            # その日のMAXとMINの差から潮回りを判定
+            if all_heights:
+                tide_phase = get_tide_phase(max(all_heights), min(all_heights))
 
-    else:
-        print(f"APIリクエスト失敗: {response.status_code}")
-        print(response.text)
+        # 【データ整理2: 波・風】時間ごとにデータを抽出し、リストに追加していく
+        if "hours" in w_data:
+            for hour_data in w_data["hours"]:
+                raw_time = hour_data['time']
+                time_key = raw_time[:13] # 潮位データと紐付けるためのキー
+                
+                h = round(hour_data.get('waveHeight', {}).get('sg', 0), 2)
+                s = hour_data.get('windSpeed', {}).get('sg', 0)
+                d = hour_data.get('windDirection', {}).get('sg')
+                cond = get_wind_condition(d)
+                
+                wave_data.append(h)
+                wave_size_data.append(get_wave_size_name(h))
+                time_data.append(datetime.strptime(raw_time, "%Y-%m-%dT%H:%M:%S%z").strftime("%H:%M"))
+                wind_speed_data.append(s)
+                wind_condition_data.append(cond)
+                wind_cardinal_data.append(get_cardinal_direction(d))
+                wind_deg_data.append(d)  # ★これを追加！
+                
+                # 同じ時間の潮汐データを辞書から取得（なければ0）してリストに追加
+                tide_data.append(tide_dict.get(time_key, 0))
+                
+                # 【新機能】初心者用・経験者用それぞれのスコアを計算してリストに追加
+                beginner_scores.append(calculate_surf_score(h, cond, s, tide_phase, "beginner"))
+                experienced_scores.append(calculate_surf_score(h, cond, s, tide_phase, "experienced"))
 
+    # 整理したすべてのデータを 'wave_info.html' に渡して描画する
     return render_template(
         'wave_info.html', 
-        wave_data=wave_data, 
-        time_data=time_data, 
+        wave_data=wave_data, time_data=time_data, 
         wind_condition_data=wind_condition_data,
         wind_speed_data=wind_speed_data,
-        wind_cardinal_data=wind_cardinal_data, # HTMLに渡す
+        wind_cardinal_data=wind_cardinal_data,
+        wind_deg_data=wind_deg_data,  # ★これを追加！
+        tide_data=tide_data,
+        tide_phase=tide_phase,
+        beginner_scores=beginner_scores,     # 追加
+        experienced_scores=experienced_scores, # 追加
+        wave_size_data=wave_size_data, # 【追加】HTMLに渡す
         date=date
     )
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
