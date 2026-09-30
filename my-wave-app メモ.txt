@@ -25,7 +25,8 @@ https://my-wave-app.onrender.com
 
 detaの関係uml,定義
 
-
+予備実験やってもらう。どういう目的で（論文に入れるから）
+レポート　技術的なことは書く、具体例も（実行結果とか）
 
 
 import os

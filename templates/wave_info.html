@@ -38,11 +38,20 @@
             </div>
 
             <div class="w-full md:w-auto text-center md:border-r border-slate-600 md:px-6">
-                <p class="text-xs text-slate-400 mb-1">総合スコア</p>
-                <div class="relative inline-block">
-                    <span id="display-score"
-                        class="text-5xl md:text-6xl font-black text-yellow-400 tracking-tighter">--</span>
-                    <span class="text-sm font-bold text-slate-500 absolute bottom-1 -right-8">/100</span>
+                <p class="text-xs text-slate-400 mb-1">総合スコア (ロジック / AI予測)</p>
+                <div class="flex items-center justify-center gap-4">
+                    <!-- 従来のロジックスコア -->
+                    <div class="relative inline-block">
+                        <span id="display-score"
+                            class="text-5xl md:text-6xl font-black text-yellow-400 tracking-tighter">--</span>
+                        <span class="text-sm font-bold text-slate-500 absolute bottom-1 -right-8">/100</span>
+                    </div>
+                    <!-- AIの予測スコアをここに追加！ -->
+                    <div class="text-left bg-slate-700/50 px-3 py-1 rounded-lg border border-slate-600">
+                        <p class="text-[10px] text-cyan-300 font-bold">🤖 AI予測</p>
+                        <span id="display-ai-score" class="text-2xl font-black text-cyan-400">--</span>
+                        <span class="text-xs text-slate-400">点</span>
+                    </div>
                 </div>
                 <p id="display-advice" class="mt-2 text-[10px] md:text-xs font-bold text-slate-300">--</p>
             </div>
@@ -140,6 +149,8 @@
         const beginnerScores = {{ beginner_scores | tojson }};
         const experiencedScores = {{ experienced_scores | tojson }};
         const waveSizeData = {{ wave_size_data | tojson }};
+        const aiBeginnerScores = {{ ai_beginner_scores | tojson }};
+        const aiProScores = {{ ai_pro_scores | tojson }};
 
         renderWaveChart(timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData);
     </script>

@@ -1,5 +1,7 @@
 import os
 import requests
+import joblib
+import math
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
@@ -53,8 +55,8 @@ def get_tide_phase(max_h, min_h):
 # 【重要関数4】掛け算モデル ＋ 5点刻み丸め処理のスコア計算
 def calculate_surf_score(wave_h, wind_cond, wind_speed, tide_phase, level):
     # --- STEP 1: 安全装置 ---
-    # 爆風(12m/s以上)、または初心者には危険な波高(1.5m超)は強制 0点
-    if wind_speed > 12.0 or (level == "beginner" and wave_h > 1.5): return 0
+    # 爆風(12m/s以上)、または初心者には危険な波高(1.6m超)は強制 0点
+    if wind_speed > 12.0 or (level == "beginner" and wave_h > 1.6): return 0
 
     # --- STEP 2: ベーススコア（波のサイズ） 最大 60点 ---
     base_score = 0
@@ -102,6 +104,18 @@ def get_wave_size_name(h):
     elif h < 1.6: return "カタ〜アタマ"
     else: return "オーバーヘッド"
 
+# ==========================================
+# AIモデルの読み込み
+# ==========================================
+model_beginner = None
+model_pro = None
+
+if os.path.exists('model_beginner.pkl'):
+    model_beginner = joblib.load('model_beginner.pkl')
+    print("✅ Beginner用AIを読み込みました")
+if os.path.exists('model_pro.pkl'):
+    model_pro = joblib.load('model_pro.pkl')
+    print("✅ Pro用AIを読み込みました")
 
 # ==========================================
 # データ保存用APIエンドポイント 
@@ -180,8 +194,10 @@ def show_wave_info(date):
     wind_speed_data, wind_cardinal_data, tide_data = [], [], []
     beginner_scores, experienced_scores = [], [] # スコア用の箱を追加
     wave_size_data = []
-    wind_deg_data = []  # ★これを追加！
+    wind_deg_data = []  
     tide_phase = "--"
+    ai_beginner_scores = []
+    ai_pro_scores = []
 
     # 両方のAPI通信が成功(200)した場合のみデータ処理を実行
     if response.status_code == 200 and tide_response.status_code == 200:
@@ -208,7 +224,9 @@ def show_wave_info(date):
             for hour_data in w_data["hours"]:
                 raw_time = hour_data['time']
                 time_key = raw_time[:13] # 潮位データと紐付けるためのキー
-                
+
+                tide_h = tide_dict.get(time_key, 0)
+
                 h = round(hour_data.get('waveHeight', {}).get('sg', 0), 2)
                 s = hour_data.get('windSpeed', {}).get('sg', 0)
                 d = hour_data.get('windDirection', {}).get('sg')
@@ -222,10 +240,25 @@ def show_wave_info(date):
                 wind_cardinal_data.append(get_cardinal_direction(d))
                 wind_deg_data.append(d)  # ★これを追加！
                 
-                # 同じ時間の潮汐データを辞書から取得（なければ0）してリストに追加
-                tide_data.append(tide_dict.get(time_key, 0))
+                tide_data.append(tide_h) # 同じ時間の潮汐データをリストに追加
+
+                # 風向きの角度を、AIが学習した sin / cos に変換
+                wind_rad = math.radians(d) if d is not None else 0
+                wind_sin = math.sin(wind_rad)
+                wind_cos = math.cos(wind_rad)
                 
-                # 【新機能】初心者用・経験者用それぞれのスコアを計算してリストに追加
+                # AIに渡す特徴量（学習時と全く同じ 5つの順番！）
+                features = [[h, s, wind_sin, wind_cos, tide_h]]
+                
+                # 予測、特徴量（features）をpredict関数で学習モデルにいれ、学習させる命令文（モデルが読み込めていれば予測、なければ "--" を入れる）
+                ai_beg_score = round(model_beginner.predict(features)[0], 1) if model_beginner else "--"
+                ai_pro_score = round(model_pro.predict(features)[0], 1) if model_pro else "--"
+                
+                # 初心者用・経験者用　aiが計算したスコアをリストに追加
+                ai_beginner_scores.append(ai_beg_score)
+                ai_pro_scores.append(ai_pro_score)
+
+                # 初心者用・経験者用それぞれのスコアを計算してリストに追加
                 beginner_scores.append(calculate_surf_score(h, cond, s, tide_phase, "beginner"))
                 experienced_scores.append(calculate_surf_score(h, cond, s, tide_phase, "experienced"))
 
@@ -241,6 +274,8 @@ def show_wave_info(date):
         tide_phase=tide_phase,
         beginner_scores=beginner_scores,     # 追加
         experienced_scores=experienced_scores, # 追加
+        ai_beginner_scores=ai_beginner_scores,
+        ai_pro_scores=ai_pro_scores,
         wave_size_data=wave_size_data, # 【追加】HTMLに渡す
         date=date
     )
