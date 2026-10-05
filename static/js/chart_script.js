@@ -25,14 +25,14 @@ function changeLevel(level) {
     }
 
     // 現在表示している時間のまま、スコアだけを再計算してダッシュボードを更新
-    // 【修正】引数に globalData.waveSizeData を追加
-    updateDashboard(currentIndex, globalData.timeData, globalData.waveData, globalData.windSpeedData, globalData.windConditionData, globalData.windCardinalData, globalData.tideData, globalData.beginnerScores, globalData.experiencedScores, globalData.waveSizeData);
+    // 【修正】引数に globalData.waveSizeData ,AIスコアを追加
+    updateDashboard(currentIndex, globalData.timeData, globalData.waveData, globalData.windSpeedData, globalData.windConditionData, globalData.windCardinalData, globalData.tideData, globalData.beginnerScores, globalData.experiencedScores, globalData.waveSizeData, globalData.aiBeginnerScores, globalData.aiProScores);
 }
 
 // 【重要関数1】ダッシュボードの数字や色を更新する関数
 // グラフ上でホバーした「時間（index番号）」を受け取り、該当するデータをHTMLに挿入する
-// 【修正】引数に beginnerScores, experiencedScores, waveSizeData を追加
-function updateDashboard(index, timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData) {
+// 【修正】引数に beginnerScores, experiencedScores, waveSizeData ,aiデータを追加
+function updateDashboard(index, timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores) {
     currentIndex = index; // 【追加】現在のインデックスを更新（レベル切り替え用）
 
     // HTML内の id="..." の要素を探し、中身のテキスト（innerText）を書き換える
@@ -65,6 +65,13 @@ function updateDashboard(index, timeData, waveData, windSpeedData, windCondition
 
     scoreEl.innerText = score;
 
+    // ↓↓↓ ★ここから追記：AIスコアの表示処理 ★ ↓↓↓
+    const aiScore = (currentLevel === 'beginner') ? aiBeginnerScores[index] : aiProScores[index];
+    const aiScoreEl = document.getElementById('display-ai-score');
+    if (aiScoreEl) {
+        aiScoreEl.innerText = aiScore;
+    }
+
     // 点数に応じて色とアドバイスのテキストを変更する
     if (score === 0) {
         // 0点（足切り）の時の危険警告：シンプルな赤色に変更
@@ -93,11 +100,10 @@ function updateDashboard(index, timeData, waveData, windSpeedData, windCondition
 
 // 【重要関数2】Chart.jsを使ってグラフを描画する関数
 // 【修正】引数に beginnerScores, experiencedScores, waveSizeData を追加
-function renderWaveChart(timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData) {
+function renderWaveChart(timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores) {
 
     // 【追加】データをグローバル変数に保存（ボタンでレベルを切り替えた時に再利用するため）
-    globalData = { timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData };
-
+    globalData = { timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores };
     const ctx = document.getElementById('waveChart').getContext('2d');
 
     // 既にグラフが存在する場合は、一度破壊（リセット）する
@@ -105,7 +111,7 @@ function renderWaveChart(timeData, waveData, windSpeedData, windConditionData, w
 
     // 初期表示として、最初の時間（index = 0）のデータをダッシュボードに表示しておく
     // 【修正】スコアの配列とサイズ名の配列も渡す
-    updateDashboard(0, timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData);
+    updateDashboard(0, timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores);
 
     // Chart.js の設定本体
     myWaveChart = new Chart(ctx, {
@@ -143,7 +149,7 @@ function renderWaveChart(timeData, waveData, windSpeedData, windConditionData, w
                 if (activeElements.length > 0) {
                     // カーソルが合っている棒グラフのインデックス番号（0〜23）を取得し、ダッシュボードを更新
                     // 【修正】スコアの配列とサイズ名の配列も渡す
-                    updateDashboard(activeElements[0].index, timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData);
+                    updateDashboard(activeElements[0].index, timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores);
                 }
             },
             scales: {
