@@ -102,15 +102,15 @@ function updateDashboard(index, timeData, waveData, windSpeedData, windCondition
 // 【修正】引数に beginnerScores, experiencedScores, waveSizeData を追加
 function renderWaveChart(timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores) {
 
-    // 【追加】データをグローバル変数に保存（ボタンでレベルを切り替えた時に再利用するため）
+    // データをグローバル変数に保存
     globalData = { timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores };
+
     const ctx = document.getElementById('waveChart').getContext('2d');
 
     // 既にグラフが存在する場合は、一度破壊（リセット）する
     if (myWaveChart) myWaveChart.destroy();
 
     // 初期表示として、最初の時間（index = 0）のデータをダッシュボードに表示しておく
-    // 【修正】スコアの配列とサイズ名の配列も渡す
     updateDashboard(0, timeData, waveData, windSpeedData, windConditionData, windCardinalData, tideData, beginnerScores, experiencedScores, waveSizeData, aiBeginnerScores, aiProScores);
 
     // Chart.js の設定本体
