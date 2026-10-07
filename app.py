@@ -135,6 +135,7 @@ def save_log():
             "wind_cos": data['wind_cos'],
             "tide_h": data['tide_h'],
             "logic_score": data['logic_score'],
+            "ai_score": data.get('ai_score', 0),    # ★追加：HTMLから送られてくるAIスコアを受け取る（無ければ0にする）
             "user_score": data['user_score'],
             "comment": data.get('comment', '')
         }

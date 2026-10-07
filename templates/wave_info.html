@@ -166,6 +166,9 @@
         // ★追加：ビギナーと経験者、両方のスコアを読み込んでおく
         const log_beginnerScores = {{ beginner_scores | tojson }};
         const log_experiencedScores = {{ experienced_scores | tojson }};
+        // ★追加：AI予測スコアも読み込んでおく
+        const log_aiBeginnerScores = {{ ai_beginner_scores | tojson }};
+        const log_aiProScores = {{ ai_pro_scores | tojson }};
 
         // ★新機能：記録者が切り替わった時に、時間帯プルダウンの文字を更新する関数
         function updateLogDropdown() {
@@ -205,6 +208,8 @@
 
             // ★修正：選ばれている名前に合わせて、データベースに保存する予報スコアも切り替える！
             const logicScoreToSave = (userName === 'Beginner') ? log_beginnerScores[index] : log_experiencedScores[index];
+            // ★追加：AIスコアもユーザーに合わせて切り替える
+            const aiScoreToSave = (userName === 'Beginner') ? log_aiBeginnerScores[index] : log_aiProScores[index];
 
             const payload = {
                 user_name: userName,
@@ -216,6 +221,7 @@
                 wind_cos: windCos,
                 tide_h: log_tideData[index],
                 logic_score: logicScoreToSave, // ここが正しいスコアになる！
+                ai_score: aiScoreToSave,       // ★追加：AIスコアも送る！
                 user_score: parseInt(userScore),
                 comment: comment
             };
