@@ -167,9 +167,9 @@ def save_log():
 
 @app.route('/')
 def index():
-    # 今日から7日後までの日付リストを作成し、トップページに渡す
+    # 「昨日（-1）」から「6日後（6）」までの日付リストを作成し、トップページに渡す
     today = datetime.today()
-    dates = [today + timedelta(days=i) for i in range(7)]
+    dates = [today + timedelta(days=i) for i in range(-1, 7)]  # ← 0スタートではなく、-1スタートに変更！
     date_strings = [date.strftime('%Y-%m-%d') for date in dates]
     return render_template('index.html', dates=date_strings)
 
