@@ -30,7 +30,14 @@
         <div class="space-y-4">
             {% for date in dates %}
             <button class="date-card" onclick="window.location.href='{{ url_for('show_wave_info', date=date) }}'">
-                <span>{{ date }}</span>
+                <span class="flex items-center">
+                    {{ date }}
+                    <!-- ★追加：今日の日付ならオレンジのバッジを出す -->
+                    {% if date == today_str %}
+                    <span
+                        class="ml-3 text-xs bg-orange-500 text-white px-2 py-0.5 rounded font-bold tracking-wider">今日</span>
+                    {% endif %}
+                </span>
                 <span class="arrow text-xl">→</span>
             </button>
             {% endfor %}
